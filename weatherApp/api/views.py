@@ -20,7 +20,7 @@ class ExternalAPIExampleView(APIView):
         data=deserialized.data
 
         current_time = timezone.make_aware(datetime.now(), timezone.get_default_timezone())
-        forecast_string=settings.FORECAST_DATA_DEFAULT
+        forecast_string=settings.FORECAST_DATA_DEFAULT  # query can be modified by changing this variable accoding to the detailType in the if block below
         newExpTime = current_time+timedelta(minutes=settings.DEFAULT_EXP_TIME)
 
         detailType=data["detailType"]
@@ -37,11 +37,16 @@ class ExternalAPIExampleView(APIView):
             #forecast_string=settings.FORECAST_DATA_WEEKLY
             newExpTime = current_time + timedelta(days=7)
 
-        requestWeatherData = weatherData.objects.filter(lat=lat , lon=lon).first()
 
+        requestWeatherData = weatherData.objects.filter(lat=lat , lon=lon).first()
+        
+        #if data is present in database
         if(requestWeatherData is not None ):
+            # if data is not expired
             if(requestWeatherData.expTime>=current_time):
                 return Response( json.loads(requestWeatherData.data),status=status.HTTP_200_OK)
+            
+            #Updating databse 
             else:
                 url = settings.URL.format(forecast_string,lat,lon,settings.ACCESS_TOKEN)
                 response = requests.get(url)
@@ -54,6 +59,7 @@ class ExternalAPIExampleView(APIView):
                     return Response({'message': 'API call failed'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         else:
+            # if data is not present for given coordinates
             url = settings.URL.format(forecast_string,lat,lon,settings.ACCESS_TOKEN)
             response = requests.get(url)
             if response.status_code == 200 :
